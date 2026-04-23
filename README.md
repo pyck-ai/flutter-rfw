@@ -1,86 +1,100 @@
-# RFW Validator Tools
+# Flutter Image
 
-Remote Flutter Widgets (RFW) validator for syntax checking widget files.
+A Flutter + Dart runtime image with a pre-installed RFW (Remote Flutter Widgets) validator. Supports both `linux/amd64` and `linux/arm64`.
 
-Supports both **text format** (`.rfwtxt`) and **binary format** (`.rfw`). Binary format is 10x faster to parse and recommended for production use.
+## Based on
 
-## Quick Test
+Our [debian base image](../slim/README.md).
 
-Test the validator with the example widget:
+Current version is defined in [`buildargs.conf`](../../buildargs.conf).
 
-```bash
-task test:flutter
-```
+## Tags
 
-Or manually:
+| Tag | Description |
+|-----|-------------|
+| `flutter:latest` | Latest Flutter version |
+| `flutter:<version>` | Pinned Flutter version |
 
-```bash
-docker run --rm \
-  -v $(pwd)/flutter:/workspace:z \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  validate-rfw example.dart
-```
+## What is included
+
+### Flutter toolchain
+
+| Path | Description |
+|------|-------------|
+| `/opt/flutter` | Full Flutter SDK (including bundled Dart SDK) |
+| `/usr/local/bin/flutter` | Symlink to flutter binary |
+| `/usr/local/bin/dart` | Symlink to dart binary |
+
+Flutter analytics and Dart telemetry are disabled at build time.
+
+### arm64 notes
+
+Flutter only ships a Linux x86_64 release archive. For `linux/arm64` builds the image automatically:
+1. Replaces the bundled x86_64 Dart SDK with an arm64 build downloaded from the Dart archive.
+2. Clears pre-compiled snapshots and engine artifacts so Flutter regenerates them for arm64.
+3. Runs `flutter precache` to download arm64 engine artifacts and recompile `flutter_tools.snapshot`.
+
+The precache result is persisted in a BuildKit cache mount keyed by Flutter version + arch, so repeat arm64 builds restore in seconds rather than recompiling.
+
+### RFW validator app
+
+Pre-installed at `/opt/rfw-validator`. Validates Remote Flutter Widgets (RFW) files for syntax errors.
+
+| File | Description |
+|------|-------------|
+| `/opt/rfw-validator/validate_rfw.dart` | Validates `.rfwtxt` (text) and `.rfw` (binary) files |
+| `/opt/rfw-validator/generate_binary.dart` | Converts text RFW to binary format |
+| `/usr/local/bin/validate-rfw` | Entrypoint script for simplified CLI use |
+
+### Additional packages installed
+
+| Package | Purpose |
+|---------|---------|
+| `file` | Used to detect Dart SDK architecture during arm64 fixup |
+| `gosu` | Privilege drop in the entrypoint (for GitHub Actions root-container support) |
+| `libgcc-s1`, `libstdc++6` | C++ runtime libraries required by Flutter |
+| `libglu1-mesa` | OpenGL utility library required by Flutter |
+
+### Default user
+
+Runs as `flutter` (UID 1000, home `/opt/flutter`). `WORKDIR` is `/app`.
 
 ## Usage
 
-### Validate RFW files (text or binary):
+### Validate an RFW file
 
-```bash
-# Validate text format
+```sh
 docker run --rm \
-  -v $(pwd):/workspace:z \
+  -v $(pwd):/app \
   ghcr.io/pyck-ai/baseimages/flutter:latest \
-  validate-rfw dist/widgets.rfwtxt
+  validate-rfw /app/widgets.rfwtxt
 
-# Validate binary format (auto-detected)
 docker run --rm \
-  -v $(pwd):/workspace:z \
+  -v $(pwd):/app \
   ghcr.io/pyck-ai/baseimages/flutter:latest \
-  validate-rfw dist/widgets.rfw
+  validate-rfw /app/widgets.rfw
 ```
 
-### Convert text to binary format:
+### Convert text RFW to binary format
 
-```bash
+```sh
 docker run --rm \
-  -v $(pwd):/workspace:z \
+  -v $(pwd):/app \
   -w /opt/rfw-validator \
   ghcr.io/pyck-ai/baseimages/flutter:latest \
-  bash -c "dart run generate_binary.dart /workspace/input.rfwtxt /workspace/output.rfw"
+  dart run generate_binary.dart /app/input.rfwtxt /app/output.rfw
 ```
 
-### Run bash instead:
+### Use as a base for a Flutter app image
 
-```bash
-docker run --rm -it \
-  -v $(pwd):/workspace:z \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  bash
+```dockerfile
+FROM ghcr.io/pyck-ai/baseimages/flutter:latest
+COPY --chown=flutter:flutter . /app
+RUN dart pub get
 ```
 
-### Previous complex command (now simplified):
+## Build
 
-Before:
-```bash
-docker run --rm \
-  -v $(pwd):/workspace:z \
-  -w /workspace/tools \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  bash -c "dart pub get && dart run validate_rfw.dart ../dist/widgets.dart"
+```sh
+task build -- flutter
 ```
-
-After:
-```bash
-docker run --rm \
-  -v $(pwd):/workspace:z \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  validate-rfw dist/widgets.dart
-```
-
-## What's included
-
-- `validate_rfw.dart` - RFW syntax validator (supports both text and binary formats)
-- `generate_binary.dart` - Converts text RFW files to binary format
-- `pubspec.yaml` - Dependencies (rfw package)
-- `entrypoint.sh` - Entrypoint script for simplified commands
-- `example.dart` - Example RFW widget file for testing (text format)
