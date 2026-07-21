@@ -2,6 +2,8 @@
 
 A Flutter + Dart runtime image with a pre-installed RFW (Remote Flutter Widgets) validator and the AWS CLI. Supports both `linux/amd64` and `linux/arm64`.
 
+The Flutter SDK is also bundled into [`all-in-one`](../all-in-one/README.md); use this standalone image when you need the RFW validator.
+
 ## Variants
 
 | Variant | Tag | Based on |
