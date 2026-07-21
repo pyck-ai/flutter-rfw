@@ -1,0 +1,6 @@
+*
+
+!/pubspec.yaml
+!/generate_binary.dart
+!/validate_rfw.dart
+!/validate-rfw.sh
