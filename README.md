@@ -4,12 +4,14 @@ A Flutter + Dart runtime image with a pre-installed RFW (Remote Flutter Widgets)
 
 ## Variants
 
-| Image | Based on | Tags |
-|-------|----------|------|
-| Alpine | our [alpine base](../base/README.md) | see below |
-| Debian | our [debian base](../base/README.md) | see below |
+| Variant | Tag | Based on |
+|---------|-----|----------|
+| Alpine | `flutter:alpine` | our [base](../base/README.md) (Alpine) + Flutter SDK |
+| Debian | `flutter:debian` | our [base](../base/README.md) (Debian) + Flutter SDK |
 
-Current version is defined in [`buildargs.conf`](../../buildargs.conf).
+Current versions are pinned in [`buildargs.conf`](../../buildargs.conf) (`FLUTTER_VERSION`, `ALPINE_VERSION`, `DEBIAN_RELEASE`).
+
+## Tags
 
 ### Alpine tags
 
@@ -17,21 +19,21 @@ Current version is defined in [`buildargs.conf`](../../buildargs.conf).
 |-----|-------------|
 | `flutter:latest` | Most recent Flutter version (Alpine) |
 | `flutter:alpine` | Most recent Flutter version (Alpine) |
-| `flutter:<major>` | Major-version alias, e.g. `flutter:3` |
-| `flutter:<major.minor>` | Minor-version alias, e.g. `flutter:3.38` |
-| `flutter:<version>` | Exact pinned version, e.g. `flutter:3.38.1` |
-| `flutter:<major>-alpine` | Major alias on Alpine, e.g. `flutter:3-alpine` |
-| `flutter:<major.minor>-alpine` | Minor alias on Alpine, e.g. `flutter:3.38-alpine` |
-| `flutter:<version>-alpine` | Exact version on Alpine, e.g. `flutter:3.38.1-alpine` |
+| `flutter:<major>` | Major-version alias |
+| `flutter:<major>.<minor>` | Minor-version alias |
+| `flutter:<version>` | Exact pinned version |
+| `flutter:<major>-alpine` | Major alias on Alpine |
+| `flutter:<major>.<minor>-alpine` | Minor alias on Alpine |
+| `flutter:<version>-alpine` | Exact version on Alpine |
 
 ### Debian tags
 
 | Tag | Description |
 |-----|-------------|
 | `flutter:debian` | Most recent Flutter version (Debian) |
-| `flutter:<major>-debian` | Major alias on Debian, e.g. `flutter:3-debian` |
-| `flutter:<major.minor>-debian` | Minor alias on Debian, e.g. `flutter:3.38-debian` |
-| `flutter:<version>-debian` | Exact version on Debian, e.g. `flutter:3.38.1-debian` |
+| `flutter:<major>-debian` | Major alias on Debian |
+| `flutter:<major>.<minor>-debian` | Minor alias on Debian |
+| `flutter:<version>-debian` | Exact version on Debian |
 
 ## What is included
 
@@ -40,10 +42,10 @@ Current version is defined in [`buildargs.conf`](../../buildargs.conf).
 | Path | Alpine | Debian | Description |
 |------|--------|--------|-------------|
 | `/opt/flutter` | ✅ | ✅ | Full Flutter SDK (including bundled Dart SDK) |
-| `/usr/local/bin/flutter` | ✅ | ✅ | Symlink to flutter binary |
-| `/usr/local/bin/dart` | ✅ | ✅ | Symlink to dart binary |
+| `/usr/local/bin/flutter` | ✅ | ✅ | Symlink to the flutter binary |
+| `/usr/local/bin/dart` | ✅ | ✅ | Symlink to the dart binary |
 
-Flutter analytics and Dart telemetry are disabled at build time.
+Every file directly under `/opt/flutter/bin` is symlinked into `/usr/local/bin`, so `flutter` and `dart` are on `PATH`. Flutter analytics and Dart telemetry are disabled at build time.
 
 ### arm64 notes
 
@@ -55,75 +57,67 @@ Flutter only ships a Linux x86_64 release archive. For `linux/arm64` builds the 
 
 The precache result is persisted in a BuildKit cache mount keyed by Flutter version + arch, so repeat arm64 builds restore in seconds rather than recompiling.
 
-### RFW validator app
+### RFW validator
 
 Pre-installed at `/opt/rfw-validator`. Validates Remote Flutter Widgets (RFW) files for syntax errors.
 
 | File | Description |
 |------|-------------|
+| `/opt/rfw-validator/pubspec.yaml` | Pub dependencies for the validator |
+| `/opt/rfw-validator/pubspec.lock` | Resolved/pinned dependency versions, produced by `dart pub get` at build time |
 | `/opt/rfw-validator/validate_rfw.dart` | Validates `.rfwtxt` (text) and `.rfw` (binary) files |
 | `/opt/rfw-validator/generate_binary.dart` | Converts text RFW to binary format |
-| `/usr/local/bin/validate-rfw` | Entrypoint script for simplified CLI use |
+| `/usr/local/bin/validate-rfw` | Wrapper script (`validate-rfw.sh`) for simplified CLI use |
 
-### Additional tools
-
-| Binary | Path | Alpine | Debian | Description |
-|--------|------|--------|--------|-------------|
-| `aws` | `/usr/bin/aws` | ✅ | ✅ | AWS CLI for pushing build artefacts to S3/ECR from CI |
-
-### Additional packages installed
+### Packages
 
 | Package | Alpine | Debian | Purpose |
 |---------|--------|--------|---------|
-| AWS CLI | `aws-cli` | `awscli` | Cloud deployments from CI |
-| gosu | `gosu` | `gosu` | Privilege drop in the entrypoint |
+| AWS CLI | `aws-cli` | `awscli` | Pushing build artefacts to S3/ECR from CI |
+| gosu | `gosu` | `gosu` | Privilege drop when the container is started as root |
 | OpenGL | `glu` | `libglu1-mesa` | Required by the Flutter engine |
-| C++ runtime | _(via gcompat)_ | `libgcc-s1`, `libstdc++6` | Required by Flutter |
+| C++ runtime | _(via gcompat)_ | `libgcc-s1`, `libstdc++6` | Required by the Flutter engine |
+
+### Environment
+
+| Variable | Value | Description |
+|----------|-------|--------------|
+| `PUB_CACHE` | `/opt/pub-cache` | Dart pub cache directory; resolves identically at build time and run time |
+
+The Debian variant also inherits `DEBIAN_FRONTEND` from [base](../base/README.md).
 
 ### Default user
 
-Runs as `flutter` (UID 1000, home `/opt/flutter`). `WORKDIR` is `/app`.
+Runs as `nonroot` (UID/GID 65532) by default. `WORKDIR` is `/app`. Because the container runs as uid 65532, a bind-mounted directory owned by your host user is **not** writable — mount inputs read-only and write generated output to a container-local path (see the Usage examples below). When started as `root` (the GitHub Actions path), `validate-rfw` runs `chmod -R 777 /__w` and then drops privileges to `nonroot` via `gosu` before continuing. A `flutter` account (uid/gid 1000, used to own the SDK at build time) still exists in `/etc/passwd`, but it is not the runtime user — only `nonroot` is used at container start.
 
-## Build stages
-
-The Dockerfile uses three stages to isolate the expensive Flutter SDK download from routine base image updates:
-
-1. **`flutter-sdk`** (`FROM alpine`/`FROM debian`) — downloads the Flutter archive, fixes up the Dart SDK for arm64, and runs `flutter precache`. Only rebuilds when `FLUTTER_VERSION` changes.
-2. **`rfw-validator`** (`FROM flutter-sdk`) — resolves pub dependencies for the RFW validator. Only rebuilds when `pubspec.yaml` or the Flutter version changes.
-3. **RESULT** (`FROM alpine`/`FROM debian`) — installs system packages, creates the flutter user, and assembles the final image. Rebuilds on any base image update, but in seconds since no downloads are involved.
+Conversely, run with `--user 0` to get a root shell for installing packages or using the image as a build environment; `gosu` (see above) is how the image itself drops back from root to `nonroot` when started that way.
 
 ## Usage
+
+There is deliberately no `ENTRYPOINT`, so `/usr/local/bin/validate-rfw` is invoked as a normal command and its first argument is the subcommand (`validate-rfw` or `generate-binary`).
 
 ### Validate an RFW file
 
 ```sh
-docker run --rm \
-  -v $(pwd):/app \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  validate-rfw /app/widgets.rfwtxt
-
-docker run --rm \
-  -v $(pwd):/app \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  validate-rfw /app/widgets.rfw
+docker run --rm -v "$PWD:/app:ro" ghcr.io/pyck-ai/baseimages/flutter:latest \
+  validate-rfw validate-rfw /app/example.dart
 ```
+
+The doubled word is intentional: the container command (`validate-rfw`), then the subcommand (`validate-rfw`).
 
 ### Convert text RFW to binary format
 
 ```sh
-docker run --rm \
-  -v $(pwd):/app \
-  -w /opt/rfw-validator \
-  ghcr.io/pyck-ai/baseimages/flutter:latest \
-  dart run generate_binary.dart /app/input.rfwtxt /app/output.rfw
+docker run --rm -v "$PWD:/app:ro" ghcr.io/pyck-ai/baseimages/flutter:latest \
+  validate-rfw generate-binary /app/in.rfwtxt /tmp/out.rfw
 ```
 
 ### Use as a base for a Flutter app image
 
 ```dockerfile
 FROM ghcr.io/pyck-ai/baseimages/flutter:latest
-COPY --chown=flutter:flutter . /app
-RUN /opt/flutter/bin/dart pub get
+COPY --chown=nonroot:nonroot . /app
+RUN dart pub get
 ```
 
 ## Build

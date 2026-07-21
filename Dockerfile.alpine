@@ -1,21 +1,18 @@
 # syntax=docker/dockerfile:1
 
+FROM base AS rootfs
+USER root
+
+RUN adduser -D -h /opt/flutter -s /bin/bash -u 1000 flutter
+
 #===============================================================================
 # FLUTTER SDK
 #===============================================================================
 
 # Uses the base image (alpine context) for this stage so that base changes
 # only invalidate the thin RESULT stage, not the expensive SDK download.
-FROM alpine AS flutter-sdk
-
-ARG TARGETPLATFORM
-ARG TARGETARCH
-ARG FLUTTER_VERSION
-
-USER 0
-
-# Create flutter user; /opt/flutter is created by the archive extraction below.
-RUN adduser -D -H -h /opt/flutter -s /bin/bash -u 1000 flutter
+FROM rootfs AS flutter-sdk
+ARG TARGETPLATFORM TARGETARCH FLUTTER_VERSION
 
 # Flutter only publishes a Linux x86_64 archive with no official arm64 Linux
 # release. The archive ships with bin/cache/ pre-populated for x86_64 (Dart SDK,
@@ -102,28 +99,11 @@ RUN /opt/flutter/bin/flutter config --no-analytics &&\
     /opt/flutter/bin/dart --disable-analytics
 
 #===============================================================================
-# RFW VALIDATOR
-#===============================================================================
-
-FROM flutter-sdk AS rfw-validator
-
-USER root
-RUN install -d -o flutter -g flutter /opt/rfw-validator
-WORKDIR /opt/rfw-validator
-COPY --chown=flutter:flutter pubspec.yaml ./
-USER flutter
-RUN /opt/flutter/bin/dart pub get
-
-#===============================================================================
 # RESULT
 #===============================================================================
 
-FROM alpine
-
-ARG TARGETPLATFORM
-ARG TARGETARCH
-
-USER 0
+FROM rootfs
+USER root
 
 RUN --mount=type=cache,id=apk-cache,target=/var/cache/apk/,sharing=locked\
     apk add --update --no-progress\
@@ -131,17 +111,18 @@ RUN --mount=type=cache,id=apk-cache,target=/var/cache/apk/,sharing=locked\
         gosu\
         glu
 
-# Create flutter user with the same uid as in the SDK stage.
-RUN adduser -D -H -h /opt/flutter -s /bin/bash -u 1000 flutter
+ENV PUB_CACHE=/opt/pub-cache
 
-COPY --from=rfw-validator /opt/flutter /opt/flutter
-COPY --from=rfw-validator /opt/rfw-validator /opt/rfw-validator
-COPY --chown=flutter:flutter validate_rfw.dart generate_binary.dart /opt/rfw-validator/
+COPY --from=flutter-sdk --chown=nonroot:nonroot /opt/flutter /opt/flutter
+COPY validate-rfw.sh /usr/local/bin/validate-rfw
+COPY --chown=nonroot:nonroot pubspec.yaml validate_rfw.dart generate_binary.dart /opt/rfw-validator/
 
-RUN find /opt/flutter/bin -maxdepth 1 \( -type f -o -type l \) -exec ln -sf {} /usr/local/bin/ \;
+RUN find /opt/flutter/bin -maxdepth 1 \( -type f -o -type l \) -exec ln -sf {} /usr/local/bin/ \; &&\
+    chmod +x /usr/local/bin/validate-rfw &&\
+    install -d -o nonroot -g nonroot /opt/pub-cache
 
-COPY entrypoint.sh /usr/local/bin/validate-rfw
-RUN chmod +x /usr/local/bin/validate-rfw
+USER nonroot
+WORKDIR /opt/rfw-validator
+RUN /opt/flutter/bin/dart pub get
 
-USER flutter
 WORKDIR /app
