@@ -7,7 +7,7 @@
 IMG=$1
 VARIANT=$2
 
-check_user    "$IMG" nonroot 65532
+check_user    "$IMG" nonroot 1001
 check_workdir "$IMG" /app
 
 # PUB_CACHE must resolve to the same path at build time (dart pub get, run as
@@ -32,7 +32,7 @@ check_file "$IMG" \
 # Real round-trip: validate-rfw has no ENTRYPOINT, so its first argument is
 # the subcommand (validate-rfw|generate-binary). Bind-mount this directory
 # (which holds example.dart, a valid .rfwtxt fixture) read-only at /app —
-# the image runs as uid 65532 and cannot write to a host-owned mount, so the
+# the image runs as uid 1001 and cannot write to a host-owned mount, so the
 # generated binary is written into the container's own /tmp instead.
 check_host "validate-rfw round-trip: text -> binary -> binary" '
     docker run --rm --entrypoint sh \
