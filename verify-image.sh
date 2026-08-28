@@ -1,8 +1,9 @@
 #!/bin/bash
-# Verifies the assembled flutter image. See docker/verify-lib.sh for the helpers.
-# Run via `task verify -- flutter`.
+# Verifies one assembled flutter-rfw image. See verify-lib.sh for the helpers
+# and verify.sh for the driver that resolves targets and calls this.
+# Run via `task verify`.
 
-. "$(dirname "$0")/../verify-lib.sh"
+. "$(dirname "$0")/verify-lib.sh"
 
 IMG=$1
 VARIANT=$2

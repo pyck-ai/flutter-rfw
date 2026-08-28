@@ -1,17 +1,17 @@
-# Flutter Image
+# flutter-rfw
 
-A Flutter + Dart runtime image with a pre-installed RFW (Remote Flutter Widgets) validator and the AWS CLI. Supports both `linux/amd64` and `linux/arm64`.
+A Flutter + Dart image with a pre-installed RFW (Remote Flutter Widgets) validator and the AWS CLI, published as `ghcr.io/pyck-ai/flutter-rfw`. Supports `linux/amd64` and `linux/arm64`.
 
-The Flutter SDK is also bundled into [`all-in-one`](../all-in-one/README.md); use this standalone image when you need the RFW validator.
+Split out of [`pyck-ai/baseimages`](https://github.com/pyck-ai/baseimages), where it was published as `ghcr.io/pyck-ai/baseimages/flutter`. That name is frozen and no longer built.
 
 ## Variants
 
 | Variant | Tag | Based on |
 |---------|-----|----------|
-| Alpine | `flutter:alpine` | our [base](../base/README.md) (Alpine) + Flutter SDK |
-| Debian | `flutter:debian` | our [base](../base/README.md) (Debian) + Flutter SDK |
+| Alpine | `flutter-rfw:alpine` | `ghcr.io/pyck-ai/baseimages/base:alpine` + Flutter SDK |
+| Debian | `flutter-rfw:debian` | `ghcr.io/pyck-ai/baseimages/base:debian` + Flutter SDK |
 
-Current versions are pinned in [`buildargs.conf`](../../buildargs.conf) (`FLUTTER_VERSION`, `ALPINE_VERSION`, `DEBIAN_RELEASE`).
+The Flutter version is pinned in [`buildargs.conf`](buildargs.conf). The Alpine and Debian versions are not pinned here — they belong to the base images and arrive with each scheduled rebuild.
 
 ## Tags
 
@@ -19,23 +19,23 @@ Current versions are pinned in [`buildargs.conf`](../../buildargs.conf) (`FLUTTE
 
 | Tag | Description |
 |-----|-------------|
-| `flutter:latest` | Most recent Flutter version (Alpine) |
-| `flutter:alpine` | Most recent Flutter version (Alpine) |
-| `flutter:<major>` | Major-version alias |
-| `flutter:<major>.<minor>` | Minor-version alias |
-| `flutter:<version>` | Exact pinned version |
-| `flutter:<major>-alpine` | Major alias on Alpine |
-| `flutter:<major>.<minor>-alpine` | Minor alias on Alpine |
-| `flutter:<version>-alpine` | Exact version on Alpine |
+| `flutter-rfw:latest` | Most recent Flutter version (Alpine) |
+| `flutter-rfw:alpine` | Most recent Flutter version (Alpine) |
+| `flutter-rfw:<major>` | Major-version alias |
+| `flutter-rfw:<major>.<minor>` | Minor-version alias |
+| `flutter-rfw:<version>` | Exact pinned version |
+| `flutter-rfw:<major>-alpine` | Major alias on Alpine |
+| `flutter-rfw:<major>.<minor>-alpine` | Minor alias on Alpine |
+| `flutter-rfw:<version>-alpine` | Exact version on Alpine |
 
 ### Debian tags
 
 | Tag | Description |
 |-----|-------------|
-| `flutter:debian` | Most recent Flutter version (Debian) |
-| `flutter:<major>-debian` | Major alias on Debian |
-| `flutter:<major>.<minor>-debian` | Minor alias on Debian |
-| `flutter:<version>-debian` | Exact version on Debian |
+| `flutter-rfw:debian` | Most recent Flutter version (Debian) |
+| `flutter-rfw:<major>-debian` | Major alias on Debian |
+| `flutter-rfw:<major>.<minor>-debian` | Minor alias on Debian |
+| `flutter-rfw:<version>-debian` | Exact version on Debian |
 
 ## What is included
 
@@ -86,7 +86,7 @@ Pre-installed at `/opt/rfw-validator`. Validates Remote Flutter Widgets (RFW) fi
 |----------|-------|--------------|
 | `PUB_CACHE` | `/opt/pub-cache` | Dart pub cache directory; resolves identically at build time and run time |
 
-The Debian variant also inherits `DEBIAN_FRONTEND` from [base](../base/README.md).
+The Debian variant also inherits `DEBIAN_FRONTEND` from the base image.
 
 ### Default user
 
@@ -101,7 +101,7 @@ There is deliberately no `ENTRYPOINT`, so `/usr/local/bin/validate-rfw` is invok
 ### Validate an RFW file
 
 ```sh
-docker run --rm -v "$PWD:/app:ro" ghcr.io/pyck-ai/baseimages/flutter:latest \
+docker run --rm -v "$PWD:/app:ro" ghcr.io/pyck-ai/flutter-rfw:latest \
   validate-rfw validate-rfw /app/example.dart
 ```
 
@@ -110,14 +110,14 @@ The doubled word is intentional: the container command (`validate-rfw`), then th
 ### Convert text RFW to binary format
 
 ```sh
-docker run --rm -v "$PWD:/app:ro" ghcr.io/pyck-ai/baseimages/flutter:latest \
+docker run --rm -v "$PWD:/app:ro" ghcr.io/pyck-ai/flutter-rfw:latest \
   validate-rfw generate-binary /app/in.rfwtxt /tmp/out.rfw
 ```
 
 ### Use as a base for a Flutter app image
 
 ```dockerfile
-FROM ghcr.io/pyck-ai/baseimages/flutter:latest
+FROM ghcr.io/pyck-ai/flutter-rfw:latest
 COPY --chown=nonroot:nonroot . /app
 RUN dart pub get
 ```
@@ -125,7 +125,19 @@ RUN dart pub get
 ## Build
 
 ```sh
-task build -- flutter           # both alpine and debian variants
-task build -- flutter-alpine    # alpine only
-task build -- flutter-debian    # debian only
+task setup             # create the buildx builder (once per machine)
+task build             # both variants, for the host architecture
+task build -- alpine   # Alpine only
+task build ARCH=arm64  # cross-build for arm64
 ```
+
+## Verifying
+
+`task verify` builds the images with `--load` and then checks the *assembled* result — default user, `WORKDIR`, `ENV`, tool versions against `buildargs.conf`, the validator's files, and a real text → binary → validate round trip:
+
+```sh
+task verify            # both variants
+task verify -- alpine  # Alpine only
+```
+
+The checks live in [`verify-image.sh`](verify-image.sh); [`verify-lib.sh`](verify-lib.sh) is a copy of the shared helper library from `pyck-ai/baseimages`.
