@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM base AS rootfs
+FROM ghcr.io/pyck-ai/baseimages/base:alpine AS rootfs
 USER root
 
 RUN adduser -D -h /opt/flutter -s /bin/bash -u 1000 flutter
@@ -9,8 +9,9 @@ RUN adduser -D -h /opt/flutter -s /bin/bash -u 1000 flutter
 # FLUTTER SDK
 #===============================================================================
 
-# Uses the base image (alpine context) for this stage so that base changes
-# only invalidate the thin RESULT stage, not the expensive SDK download.
+# The SDK gets its own stage so that a change to the validator sources or to the
+# packages installed in RESULT rebuilds only that thin final stage, leaving the
+# expensive download and precache below untouched.
 FROM rootfs AS flutter-sdk
 ARG TARGETPLATFORM TARGETARCH FLUTTER_VERSION
 
@@ -104,6 +105,10 @@ RUN /opt/flutter/bin/flutter config --no-analytics &&\
 
 FROM rootfs
 USER root
+
+# Links the GHCR package to this repository, which is what makes the package's
+# source, README and visibility resolve on the GitHub Packages page.
+LABEL org.opencontainers.image.source="https://github.com/pyck-ai/flutter-rfw"
 
 RUN --mount=type=cache,id=apk-cache,target=/var/cache/apk/,sharing=locked\
     apk add --update --no-progress\
