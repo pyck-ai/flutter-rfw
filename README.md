@@ -90,7 +90,7 @@ The Debian variant also inherits `DEBIAN_FRONTEND` from the base image.
 
 ### Default user
 
-Runs as `nonroot` (UID/GID 1001) by default. `WORKDIR` is `/app`. Uid 1001 matches the uid our GitHub Actions runners execute as, so a bind-mounted CI workspace is writable; a directory owned by a *different* uid (your local user, for instance) is **not** — mount inputs read-only and write generated output to a container-local path (see the Usage examples below). When started as `root` (the GitHub Actions path), `validate-rfw` runs `chmod -R 777 /__w` and then drops privileges to `nonroot` via `gosu` before continuing. A `flutter` account (uid/gid 1000, used to own the SDK at build time) still exists in `/etc/passwd`, but it is not the runtime user — only `nonroot` is used at container start.
+Runs as `nonroot` (UID/GID 1001) by default. `WORKDIR` is `/app`. Uid 1001 matches the uid our GitHub Actions runners execute as, so a bind-mounted CI workspace is writable; a directory owned by a *different* uid (your local user, for instance) is **not** — mount inputs read-only and write generated output to a container-local path (see the Usage examples below). When started as `root` (the GitHub Actions path), `validate-rfw` runs `chmod -R 777 /__w` and then drops privileges to `nonroot` via `gosu` before continuing.
 
 Conversely, run with `--user 0` to get a root shell for installing packages or using the image as a build environment; `gosu` (see above) is how the image itself drops back from root to `nonroot` when started that way.
 

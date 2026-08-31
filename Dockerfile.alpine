@@ -3,8 +3,6 @@
 FROM ghcr.io/pyck-ai/baseimages/base:alpine AS rootfs
 USER root
 
-RUN adduser -D -h /opt/flutter -s /bin/bash -u 1000 flutter
-
 #===============================================================================
 # FLUTTER SDK
 #===============================================================================
@@ -33,7 +31,7 @@ RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
     git config --global --add safe.directory /opt/flutter &&\
     git -C /opt/flutter rev-parse HEAD > /opt/flutter/.git/shallow &&\
     git -C /opt/flutter gc --prune=now &&\
-    chown -R flutter:flutter /opt/flutter
+    chown -R nonroot:nonroot /opt/flutter
 
 # arm64 only: replace the bundled x86_64 Dart SDK with an arm64 build. Flutter's
 # bootstrap cannot self-repair a wrong-arch SDK. It tries to exec the existing
@@ -62,7 +60,7 @@ RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
             --checksum-url "https://storage.googleapis.com/dart-archive/channels/stable/release/{version}/sdk/dartsdk-linux-{arch}-release.zip.sha256sum"\
             --install-to /opt/flutter/bin/cache/ &&\
         rm -rf /opt/flutter/bin/cache/*.stamp /opt/flutter/bin/cache/artifacts/engine &&\
-        chown -R flutter:flutter /opt/flutter/bin/cache;\
+        chown -R nonroot:nonroot /opt/flutter/bin/cache;\
     fi
 
 # arm64 only: recompile flutter_tools.snapshot and download arm64 engine
@@ -82,8 +80,8 @@ RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
 # the full bin/cache/ via an atomic rsync so subsequent arm64 builds restore in
 # seconds. amd64 skips this step entirely since the archive already has
 # everything it needs.
-USER flutter
-RUN --mount=type=cache,id=flutter-precache,target=/var/cache/flutter-precache,sharing=locked,uid=1000,gid=1000\
+USER nonroot
+RUN --mount=type=cache,id=flutter-precache,target=/var/cache/flutter-precache,sharing=locked,uid=1001,gid=1001\
     if [ "$TARGETARCH" != "amd64" ]; then\
         cache_dir="/var/cache/flutter-precache/${FLUTTER_VERSION}-${TARGETARCH}" &&\
         if [ -d "$cache_dir" ]; then\
