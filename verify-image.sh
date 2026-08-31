@@ -16,6 +16,12 @@ check_workdir "$IMG" /app
 # the runtime user cannot read.
 check_env "$IMG" PUB_CACHE /opt/pub-cache
 
+# Zero-file telemetry suppression must resolve identically at build time and
+# run time; see the ENV comment in the Dockerfiles for why this replaced a
+# build-time `flutter config --no-analytics` call.
+check_env "$IMG" FLUTTER_SUPPRESS_ANALYTICS true
+check_env "$IMG" DASH__SUPPRESS_ANALYTICS true
+
 check_cmd "$IMG" flutter dart validate-rfw aws gosu
 
 check_version "$IMG" "flutter --version" "$FLUTTER_VERSION"

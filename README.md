@@ -47,7 +47,7 @@ The Flutter version is pinned in [`buildargs.conf`](buildargs.conf). The Alpine 
 | `/usr/local/bin/flutter` | ✅ | ✅ | Symlink to the flutter binary |
 | `/usr/local/bin/dart` | ✅ | ✅ | Symlink to the dart binary |
 
-Every file directly under `/opt/flutter/bin` is symlinked into `/usr/local/bin`, so `flutter` and `dart` are on `PATH`. Flutter analytics and Dart telemetry are disabled at build time.
+Every file directly under `/opt/flutter/bin` is symlinked into `/usr/local/bin`, so `flutter` and `dart` are on `PATH`. Flutter analytics and Dart telemetry are suppressed via environment variables that apply at both build time and run time.
 
 ### arm64 notes
 
@@ -85,6 +85,8 @@ Pre-installed at `/opt/rfw-validator`. Validates Remote Flutter Widgets (RFW) fi
 | Variable | Value | Description |
 |----------|-------|--------------|
 | `PUB_CACHE` | `/opt/pub-cache` | Dart pub cache directory; resolves identically at build time and run time |
+| `FLUTTER_SUPPRESS_ANALYTICS` | `true` | Suppresses Flutter analytics regardless of `$HOME` |
+| `DASH__SUPPRESS_ANALYTICS` | `true` | Suppresses Dart telemetry regardless of `$HOME` |
 
 The Debian variant also inherits `DEBIAN_FRONTEND` from the base image.
 

@@ -3,6 +3,14 @@
 FROM ghcr.io/pyck-ai/baseimages/base:debian AS rootfs
 USER root
 
+# Zero-file telemetry suppression. flutter_tools and package:unified_analytics
+# resolve their config from $HOME on every invocation, so a build-time
+# `flutter config --no-analytics` written under one HOME is silently ignored
+# when the container runs under another. These env vars short-circuit that
+# lookup entirely, at build time and at run time.
+ENV FLUTTER_SUPPRESS_ANALYTICS=true \
+    DASH__SUPPRESS_ANALYTICS=true
+
 #===============================================================================
 # FLUTTER SDK
 #===============================================================================
@@ -93,9 +101,6 @@ RUN --mount=type=cache,id=flutter-precache,target=/var/cache/flutter-precache,sh
             mv "$tmp_dir" "$cache_dir";\
         fi;\
     fi
-
-RUN /opt/flutter/bin/flutter config --no-analytics &&\
-    /opt/flutter/bin/dart --disable-analytics
 
 #===============================================================================
 # RESULT
