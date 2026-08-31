@@ -118,7 +118,6 @@ RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt/,sharing=locked\
     apt-get update &&\
     apt-get install -y --no-install-recommends\
         awscli\
-        gosu\
         libgcc-s1\
         libglu1-mesa\
         libstdc++6

@@ -4,17 +4,6 @@ set -euo pipefail
 # Entrypoint script for Flutter RFW validator container
 # Simplifies running the validator against widget files
 
-# If running as root, fix GitHub Actions workspace permissions and switch to nonroot user
-if [ "$(id -u)" = "0" ]; then
-    # Fix GitHub Actions workspace permissions if directory exists
-    if [ -d "/__w" ]; then
-        chmod -R 777 /__w
-    fi
-
-    # Switch to nonroot user and re-execute this script
-    exec gosu nonroot "$0" "$@"
-fi
-
 # Default command: validate-rfw
 COMMAND="${1:-validate-rfw}"
 

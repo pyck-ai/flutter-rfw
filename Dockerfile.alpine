@@ -116,7 +116,6 @@ LABEL org.opencontainers.image.source="https://github.com/pyck-ai/flutter-rfw"
 RUN --mount=type=cache,id=apk-cache,target=/var/cache/apk/,sharing=locked\
     apk add --update --no-progress\
         aws-cli\
-        gosu\
         glu
 
 ENV PUB_CACHE=/opt/pub-cache

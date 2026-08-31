@@ -22,7 +22,7 @@ check_env "$IMG" PUB_CACHE /opt/pub-cache
 check_env "$IMG" FLUTTER_SUPPRESS_ANALYTICS true
 check_env "$IMG" DASH__SUPPRESS_ANALYTICS true
 
-check_cmd "$IMG" flutter dart validate-rfw aws gosu
+check_cmd "$IMG" flutter dart validate-rfw aws
 
 check_version "$IMG" "flutter --version" "$FLUTTER_VERSION"
 
