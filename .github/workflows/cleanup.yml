@@ -29,10 +29,6 @@ env:
   # Delete branches with no activity in this many days (closed PR branches included).
   BRANCHES_RETAIN_DAYS: 90
 
-  # Keep at least RETAIN_VERSIONS tagged image versions; delete anything else older than RETAIN_DAYS.
-  IMAGES_RETAIN_DAYS: 90
-  IMAGES_RETAIN_VERSIONS: 10
-
 jobs:
   # Delete workflow runs older than WORKFLOWS_RETAIN_DAYS, keeping at least 1 per workflow.
   clean-old-workflow-runs:
@@ -95,40 +91,20 @@ jobs:
           delete_tags: false
           exclude_open_pr_branches: true
 
-  # Prune old versions of the published image. The buildcache package
-  # (flutter-rfw/buildcache) is deliberately NOT pruned: its two tags are
-  # overwritten on every push and deleting them only forces a cold rebuild.
-  clean-ghcr:
-    name: Delete old container images
-    needs: clean-stale-branches
-    runs-on: self-hosted
-    permissions:
-      packages: write
-    steps:
-      # Remove all untagged (dangling) image versions first.
-      - name: Delete untagged versions
-        uses: vlaurin/action-ghcr-prune@0cf7d39f88546edd31965acba78cdcb0be14d641 # v0.6.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          organization: ${{ github.repository_owner }}
-          container: flutter-rfw
-          dry-run: ${{ env.DRY_RUN }}
-          prune-untagged: true
-
-      # Delete tagged versions beyond IMAGES_RETAIN_VERSIONS, except 'latest' and semver tags
-      # that are younger than IMAGES_RETAIN_DAYS. prune-tags-regexes selects all tags as
-      # candidates; keep-* inputs then protect the ones we want to keep.
-      - name: Delete old tagged versions
-        uses: vlaurin/action-ghcr-prune@0cf7d39f88546edd31965acba78cdcb0be14d641 # v0.6.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          organization: ${{ github.repository_owner }}
-          container: flutter-rfw
-          dry-run: ${{ env.DRY_RUN }}
-          prune-tags-regexes: ^.+$
-          keep-last: ${{ env.IMAGES_RETAIN_VERSIONS }}
-          keep-tags-regexes: |
-              ^latest$
-              ^alpine$
-              ^debian$
-          keep-younger-than: ${{ env.IMAGES_RETAIN_DAYS }}
+# NO GHCR pruning here, deliberately. Do not reinstate `prune-untagged: true`.
+#
+# The removed job destroyed this repo's published image. `prune-untagged`
+# deletes every version that carries no tag, and on a multi-arch build the
+# per-architecture manifests are exactly that: the tagged OCI index survives
+# and all of its children are deleted underneath it. The result looks healthy
+# from the outside (every tag still resolves, HTTP 200 on the index) while
+# `docker pull` fails with "manifest unknown" for all of them, because the
+# index points at manifests that no longer exist. It ran daily with
+# dry-run false and no age floor, so a rebuild would have been hollowed out
+# again within a day. pyck-ai/baseimages lost 168 tags to this same
+# configuration before it was found there.
+#
+# Pruning returns when `ghcr-tidy` lands in pyck-ai/github-actions. That tool
+# walks index children and treats them as reachable from the tag that points
+# at them, which is the property this action lacks. Until then this repo keeps
+# its untagged versions; that costs storage and nothing else.
