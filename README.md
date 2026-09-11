@@ -134,11 +134,4 @@ task build ARCH=arm64  # cross-build for arm64
 
 ## Verifying
 
-`task verify` builds the images with `--load` and then checks the *assembled* result — default user, `WORKDIR`, `ENV`, tool versions against `buildargs.conf`, the validator's files, and a real text → binary → validate round trip:
-
-```sh
-task verify            # both variants
-task verify -- alpine  # Alpine only
-```
-
-The checks live in [`verify-image.sh`](verify-image.sh); [`verify-lib.sh`](verify-lib.sh) is a copy of the shared helper library from `pyck-ai/baseimages`.
+There is no local `task verify`. CI verifies the exact pushed digest of each variant against [`.imgverify.yaml`](.imgverify.yaml) before any tag is applied — default user, `WORKDIR`, `ENV`, tool versions against `buildargs.conf`, the validator's files, and a real text → binary → validate round trip.
