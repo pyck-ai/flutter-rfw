@@ -24,9 +24,9 @@ Do not document the pinned Flutter version — it lives in `buildargs.conf` and 
 
 ## Verification
 
-CI verifies the exact pushed digest of each variant against [`.imgverify.yaml`](.imgverify.yaml) before any tag is applied, using the shared `imgverify` tool from `pyck-ai/github-actions`. There is no local `task verify` — a local `--load` build is not the artifact CI publishes, so it would verify something other than what ships.
+CI verifies the exact pushed digest of each variant by running [`verify.sh`](verify.sh) **inside** the image before any tag is applied. There is no local `task verify` — a local `--load` build is not the artifact CI publishes, so it would verify something other than what ships.
 
-When a Dockerfile changes, update `.imgverify.yaml` in the same change:
+When a Dockerfile changes, update `verify.sh` in the same change:
 
 - Tool added, removed or renamed: update the relevant version/command checks.
 - New or changed `ENV`: update the env checks.
@@ -35,8 +35,8 @@ When a Dockerfile changes, update `.imgverify.yaml` in the same change:
 
 Ground every check in the Dockerfile, and prefer checks that exercise real behaviour (the round-trip check) over ones that only assert a variable is set.
 
-The vendored `verify-lib.sh`/`verify-image.sh`/`verify.sh` bash scripts are gone; both this repo and `pyck-ai/baseimages` now share the one `imgverify` implementation, so there is nothing left to keep in sync.
+`verify.sh` is invoked as `docker run --rm --env-file buildargs.conf -e TARGET=<alpine|debian> -v "$(pwd)/verify.sh:/verify.sh:ro" --entrypoint /bin/sh <ref> /verify.sh`, so `buildargs.conf` values (like `FLUTTER_VERSION`) are compared directly with no templating layer, and it is runnable by hand the same way.
 
 ## CI
 
-[`build.yml`](.github/workflows/build.yml) delegates to the shared `pyck-ai/github-actions` build-image workflow, which discovers the matrix, builds, verifies against `.imgverify.yaml`, and publishes tags. Host networking for BuildKit is configured by `docker/setup-buildx-action` inside that shared workflow, never in the `Taskfile.yml` — the Taskfile must keep working under rootless Docker locally.
+[`build.yml`](.github/workflows/build.yml) delegates to the shared `pyck-ai/github-actions` build-image workflow, which discovers the matrix, builds, runs `verify.sh` inside each pushed digest, and publishes tags. Host networking for BuildKit is configured by `docker/setup-buildx-action` inside that shared workflow, never in the `Taskfile.yml` — the Taskfile must keep working under rootless Docker locally.

@@ -19,15 +19,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Delegates discover -> build (push-by-digest) -> verify (imgverify against
-  # .imgverify.yaml) -> publish (apply tags) -> gate to the shared workflow.
+  # Delegates discover -> build (push-by-digest) -> verify (verify.sh run
+  # inside the image) -> publish (apply tags) -> gate to the shared workflow.
   # See pyck-ai/github-actions/.github/workflows/build-image.yml for the job
   # shape; this repo no longer carries its own copy.
   build:
     permissions:
       contents: read
       packages: write
-    uses: pyck-ai/github-actions/.github/workflows/build-image.yml@77fac7488a2a63aa7e3fb69e186806f3ad004520
+    uses: pyck-ai/github-actions/.github/workflows/build-image.yml@828dceea191b7bf46411368edc65037adda9fad7
     with:
       registry: ghcr.io/pyck-ai
       # Distinct per-repo builder name so concurrent builds on the same

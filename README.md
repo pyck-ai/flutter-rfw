@@ -134,4 +134,4 @@ task build ARCH=arm64  # cross-build for arm64
 
 ## Verifying
 
-There is no local `task verify`. CI verifies the exact pushed digest of each variant against [`.imgverify.yaml`](.imgverify.yaml) before any tag is applied — default user, `WORKDIR`, `ENV`, tool versions against `buildargs.conf`, the validator's files, and a real text → binary → validate round trip.
+There is no local `task verify`. CI verifies the exact pushed digest of each variant by running [`verify.sh`](verify.sh) **inside** the image before any tag is applied — default user, `WORKDIR`, `ENV`, tool versions against `buildargs.conf`, the validator's files, and a real text → binary → validate round trip.
