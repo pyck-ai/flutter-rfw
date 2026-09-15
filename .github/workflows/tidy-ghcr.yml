@@ -38,11 +38,11 @@ run-name: Tidy GHCR
 on:
   schedule:
     # This repo builds at 11:00 UTC (weekdays, build-image.yml) and runs
-    # tidy-repo.yml at 12:00 UTC. 04:00 UTC keeps this run a full hour
-    # clear of pyck-ai/baseimages' own GHCR retention at 03:00 UTC (the
-    # two share self-hosted runners) and well away from both of this
-    # repo's other crons.
-    - cron: '0 4 * * *'
+    # All four pyck-ai repos share the same self-hosted runners, so GHCR
+    # retention is staggered an hour apart across them: baseimages 03:00,
+    # github-runner 04:00, this repo 05:00. Keep that spacing when adding
+    # a repo, and check the others before picking a slot.
+    - cron: '0 5 * * *'
   workflow_dispatch:
     inputs:
       apply:

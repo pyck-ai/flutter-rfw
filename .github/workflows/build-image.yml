@@ -6,7 +6,10 @@ run-name: Build and push the flutter-rfw image
 # day's base rather than yesterday's.
 on:
   schedule:
-    - cron: '0 11 * * 1-5'
+    # Staggered across the four pyck-ai repos, which share self-hosted
+    # runners: baseimages 09:00, github-runner 11:00, this repo 13:00.
+    # Check the others before changing this slot.
+    - cron: '0 13 * * 1-5'
   workflow_dispatch:
   # Validate every PR before merge so Renovate (and humans) always have a status check
   # to gate automerge on. PR runs push by digest only and do not export build cache
