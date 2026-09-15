@@ -1,10 +1,5 @@
 # GHCR retention for pyck-ai/flutter-rfw.
 #
-# This repo had NO retention between 2026-09-11 and this file landing: the
-# previous prune job was removed after it destroyed the published image
-# (see .github/workflows/cleanup.yml's comment block). Untagged versions
-# have been accumulating since, which costs storage and nothing else.
-#
 # Package names are full names, never a prefix joined to an image name.
 # The image is top level; the build cache is nested UNDER it.
 version: 1

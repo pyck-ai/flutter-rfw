@@ -1,5 +1,9 @@
-name: cleanup
-run-name: Cleanup
+name: tidy-repo
+run-name: Tidy repository
+
+# Safe repo-level housekeeping (stale issues/PRs, old branches, workflow
+# run cleanup). GHCR image retention is a separate concern, handled by
+# tidy-ghcr.yml.
 
 # Run daily at 12:00 UTC. Jobs are chained sequentially to avoid hitting GitHub API rate limits.
 on:
@@ -7,39 +11,20 @@ on:
     - cron: '0 12 * * *'
   workflow_dispatch:
 
-# Never cancel a running cleanup job — partial cleanup is worse than no cleanup.
+# Never cancel a running maintenance job: partial cleanup is worse than no cleanup.
+# The shared workflow deliberately declares no concurrency of its own (a
+# duplicate group between caller and callee would deadlock the run), so this
+# caller owns it.
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
-  # Delete old workflow runs, close stale issues/PRs, and delete stale
-  # branches. See pyck-ai/github-actions' tidy-repo.yml for the job chain;
-  # all inputs here match its declared defaults, so none are passed.
   tidy-repo:
-    name: Tidy repo
+    uses: pyck-ai/github-actions/.github/workflows/tidy-repo.yml@be8e36d4bd4c1ed4b67ba60b0d453d76355051aa
     permissions:
       actions: write # required to delete workflow runs
       pull-requests: write # required to label/close issues and PRs
       issues: write # required to label/close issues; pull-requests does not grant this, it is a separate scope
       contents: write # required to delete branches
-    uses: pyck-ai/github-actions/.github/workflows/tidy-repo.yml@12f4c2db2695ccf210fc8e1d915d4017c3a91631
     secrets: inherit
-
-# NO GHCR pruning here, deliberately. Do not reinstate `prune-untagged: true`.
-#
-# The removed job destroyed this repo's published image. `prune-untagged`
-# deletes every version that carries no tag, and on a multi-arch build the
-# per-architecture manifests are exactly that: the tagged OCI index survives
-# and all of its children are deleted underneath it. The result looks healthy
-# from the outside (every tag still resolves, HTTP 200 on the index) while
-# `docker pull` fails with "manifest unknown" for all of them, because the
-# index points at manifests that no longer exist. It ran daily with
-# dry-run false and no age floor, so a rebuild would have been hollowed out
-# again within a day. pyck-ai/baseimages lost 168 tags to this same
-# configuration before it was found there.
-#
-# Pruning returns when `ghcr-tidy` lands in pyck-ai/github-actions. That tool
-# walks index children and treats them as reachable from the tag that points
-# at them, which is the property this action lacks. Until then this repo keeps
-# its untagged versions; that costs storage and nothing else.
