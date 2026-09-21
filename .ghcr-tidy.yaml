@@ -5,14 +5,25 @@
 version: 1
 owner: pyck-ai
 
+# Pinned explicitly rather than left to ghcr-tidy's defaults: the
+# numbers governing an irreversible deletion belong in the repo they
+# delete from, not inherited from a default that could later change.
+# These currently equal the shared workflow's own defaults, so this is
+# not a behaviour change.
+retention:
+  keepMajors: 1
+  keepMinors: 3
+  keepPatches: 5
+  keepDays: 30
+
 # Pre-flight proof, taken before any deletion, that the registry is
 # readable and a known-good tag resolves (see ghcr-tidy's
 # `ManifestCanary` doc for why this must live here rather than as a
 # workflow input: the `tidy-ghcr.yml` caller's `inputs` are empty on a
 # `schedule` trigger). `flutter-rfw:alpine` is chosen deliberately:
-# `alpine` matches ghcr-tidy's own DEFAULT_PROTECTED_TAGS (`^alpine$`),
-# so it is a protected root, always a keep-root, never in DELETE. A
-# canary that could itself be deleted would prove nothing.
+# `alpine` carries no version token, so it is an unversioned singleton
+# kind, always a keep-root, never in DELETE. A canary that could itself
+# be deleted would prove nothing.
 canary:
   package: flutter-rfw
   tag: alpine
@@ -24,7 +35,8 @@ packages:
   - match: flutter-rfw
 
   # The build cache. Its tags are overwritten on every push, so the only
-  # cost of deleting one is a cold rebuild. `policy: cache` keeps every
-  # tagged version; the churn is in the untagged layers underneath.
+  # cost of deleting one is a cold rebuild. Its tags carry no version
+  # token, so every one is an unversioned singleton kind and always
+  # retained with no config needed; the churn is in the untagged layers
+  # underneath.
   - match: flutter-rfw/buildcache
-    policy: cache
