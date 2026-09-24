@@ -8,13 +8,15 @@ owner: pyck-ai
 # Pinned explicitly rather than left to ghcr-tidy's defaults: the
 # numbers governing an irreversible deletion belong in the repo they
 # delete from, not inherited from a default that could later change.
-# These currently equal the shared workflow's own defaults, so this is
-# not a behaviour change.
+# keepMajors, keepMinors and keepPatches equal the shared workflow's
+# own defaults. keepDays is raised deliberately from the default 30 to
+# 90 to keep recent builds around longer: nothing younger than keepDays
+# is ever deleted, tagged or not, so raising it can only retain more.
 retention:
   keepMajors: 1
   keepMinors: 3
   keepPatches: 5
-  keepDays: 30
+  keepDays: 90
 
 # Pre-flight proof, taken before any deletion, that the registry is
 # readable and a known-good tag resolves (see ghcr-tidy's
