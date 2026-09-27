@@ -1,13 +1,18 @@
 {
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	// Standalone: deliberately does NOT extend
+	// local>pyck-ai/renovate//presets/default.json5. That preset now opens
+	// every update as a draft labelled "automerge" and hands merging to two
+	// separate Apps (pyck-renovate promotes and arms auto-merge, pyck-review
+	// approves), a review flow this repository is not part of. This file
+	// keeps the settings it used to inherit from that preset instead, so
+	// Renovate itself merges non-major updates once CI is green, as before.
 	"extends": [
-		// Renovate's recommended defaults: grouping, automerge, ignore patterns, etc.
+		// Renovate's recommended defaults: grouping, ignore patterns, etc.
 		"config:recommended",
-		// Shared org defaults (branchPrefix, timezone, automerge schedule/strategy,
-		// minimumReleaseAge, labels, semanticCommits, vulnerability alerts, and the
-		// shared packageRules).
-		"local>pyck-ai/renovate//presets/default.json5",
-		// Shared customManagers preset for the buildargs.conf inline-comment manager.
+		// Shared customManagers preset for the buildargs.conf inline-comment
+		// manager. Only defines a regex manager; carries no merge or review
+		// policy.
 		"local>pyck-ai/renovate//presets/buildargs.json5"
 	],
 	// Only manage GitHub Actions pins and the custom regex manager for buildargs.conf.
@@ -19,5 +24,54 @@
 	"enabledManagers": [
 		"github-actions",
 		"custom.regex"
-	]
+	],
+	// Explicit prefix for all Renovate branches; keeps them easy to filter and identify.
+	"branchPrefix": "renovate/",
+	// Interpret all schedule strings (e.g. automergeSchedule) in Berlin local time.
+	"timezone": "Europe/Berlin",
+	// Automerge only during business hours to avoid unattended merges at night or on weekends.
+	"automergeSchedule": [
+		"after 9am and before 4pm every weekday"
+	],
+	// Squash is the only merge method GitHub signs, and the org ruleset
+	// requires signed commits; rebase merges are never signed.
+	"automergeStrategy": "squash",
+	// Wait 3 days before opening a PR so yanked or broken releases have time to be caught.
+	"minimumReleaseAge": "3 days",
+	"labels": ["renovate"],
+	// Plain commit messages; semantic commit prefixes add noise without benefit here.
+	"semanticCommits": "disabled",
+	// Open the PR straight away rather than after a green branch build: this
+	// repo's CI runs on pull_request, so "status-success" would deadlock (no
+	// PR, no build, no status, no PR). Automerge still waits for green checks.
+	"prCreation": "immediate",
+	"prConcurrentLimit": 5,
+	"branchConcurrentLimit": 10,
+	// Rules are ordered so later ones win on conflict.
+	"packageRules": [
+		{
+			"description": "Automerge everything except major updates",
+			"matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+			"automerge": true
+		},
+		{
+			"description": "Major updates require manual review",
+			"matchUpdateTypes": ["major"],
+			"automerge": false
+		},
+		{
+			// Digest/pin updates carry no release timestamp, so the default
+			// minimumReleaseAgeBehaviour=timestamp-required would mark them
+			// pending forever and never open a PR.
+			"description": "Digests/pins have no release timestamp; don't pend them forever",
+			"matchUpdateTypes": ["digest", "pin"],
+			"minimumReleaseAgeBehaviour": "timestamp-optional"
+		}
+	],
+	// Use the OSV database for vulnerability scanning; broader coverage than
+	// GitHub's alerts. Do NOT add `vulnerabilityAlerts: { enabled: false }`:
+	// despite the name it freezes vulnerable packages rather than silencing a
+	// notification (see pyck-ai/renovate's presets/default.json5 for the full
+	// explanation).
+	"osvVulnerabilityAlerts": true
 }
