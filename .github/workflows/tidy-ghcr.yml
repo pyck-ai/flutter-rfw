@@ -54,7 +54,7 @@ on:
         type: string
         default: '200'
       package:
-        description: 'Restrict to one configured package (matches a packages[].match entry in .ghcr-tidy.yaml); empty = all'
+        description: 'Restrict to one configured package (matches a packages[].match entry in .github/tidy-ghcr.yml); empty = all'
         type: string
         default: ''
       baseline:
@@ -76,7 +76,7 @@ concurrency:
 
 jobs:
   tidy:
-    uses: pyck-ai/github-actions/.github/workflows/tidy-ghcr.yml@e11b1f384df6cf1a71b5ace1f741f7717880b866 # v0.1.0
+    uses: pyck-ai/github-actions/.github/workflows/tidy-ghcr.yml@7f31f485dc67cbf16108d45e1cda1deb4ec3f639 # main 2026-10-16
     with:
       # Plain OR of two real booleans (never a `||` fallback on
       # `inputs.apply` itself); see the module header's typing-hazard
