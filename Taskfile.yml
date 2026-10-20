@@ -3,6 +3,9 @@ version: '3'
 vars:
   REGISTRY: '{{.REGISTRY | default "ghcr.io/pyck-ai"}}'
   CI: '{{.CI | default ""}}'
+  # The buildx builder `task build` uses. The shared build-image workflow
+  # passes its own with BUILDER=<name>; `task setup` creates the default.
+  BUILDER: '{{.BUILDER | default "flutter-rfw"}}'
 
   _BAKE_BUILDARGS:
     sh: >-
@@ -26,17 +29,19 @@ tasks:
           --driver=docker-container
 
   build:
-    desc: "Build the image using Docker Bake. Args: ARCH=arm64, -- alpine|debian"
+    desc: "Build the image using Docker Bake. Args: TARGET=<alpine|debian, space-separated; default both>, BUILDER=<buildx builder>, ARCH=arm64"
     cmds:
+      # Under CI=true (the shared build-image workflow) no local-only flags:
+      # no host platform and no cache clearing; the pipeline's own overrides
+      # in CLI_ARGS decide caching and pushing.
       - >-
         docker buildx bake
         --pull
-        --builder flutter-rfw
-        {{if not .CI}}--set {{ (printf "*.platform=linux/%s" (.ARCH | default ._HOST_ARCH)) | q}}{{end}}
-        --set "*.cache-from="
-        --set "*.cache-to="
+        --builder {{.BUILDER | q}}
+        {{if not .CI}}--set {{ (printf "*.platform=linux/%s" (.ARCH | default ._HOST_ARCH)) | q}} --set "*.cache-from=" --set "*.cache-to="{{end}}
         --var REGISTRY={{ .REGISTRY | q}}
         {{._BAKE_BUILDARGS}}
         {{if .CLI_VERBOSE}}--debug{{end}}
         {{.BAKE_EXTRA}}
         {{.CLI_ARGS}}
+        {{.TARGET}}

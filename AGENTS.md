@@ -39,6 +39,6 @@ Ground every check in the Dockerfile, and prefer checks that exercise real behav
 
 ## CI
 
-[`build-image.yml`](.github/workflows/build-image.yml) delegates to the shared `pyck-ai/github-actions` build-image workflow, which discovers the matrix, builds, runs `verify.sh` inside each pushed digest, and publishes tags. Host networking for BuildKit is configured by `docker/setup-buildx-action` inside that shared workflow, never in the `Taskfile.yml`; the Taskfile must keep working under rootless Docker locally.
+[`build-image.yml`](.github/workflows/build-image.yml) delegates to the shared `pyck-ai/github-actions` build-image workflow, which discovers the matrix, builds, runs `verify.sh` inside each pushed digest, and publishes tags. The builder is set up inside that shared workflow (on the `self-hosted-kata` pool, the runner's rootless BuildKit through the buildx remote driver), never in the `Taskfile.yml`; the Taskfile must keep working under rootless Docker locally. `task build` takes `TARGET` and `BUILDER` and adds no local-only flags under `CI=true`, which is the contract that workflow's header names.
 
 [`tidy-repo.yml`](.github/workflows/tidy-repo.yml) and [`tidy-ghcr.yml`](.github/workflows/tidy-ghcr.yml) handle repo housekeeping and GHCR image retention respectively, both thin callers of shared workflows in `pyck-ai/github-actions`.
