@@ -30,10 +30,12 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: pyck-ai/github-actions/.github/workflows/build-image.yml@e11b1f384df6cf1a71b5ace1f741f7717880b866 # v0.1.0
+    uses: pyck-ai/github-actions/.github/workflows/build-image.yml@2315aea999a4dc0d1643cdb635ea6308242e55df # main 2026-10-20
     with:
       registry: ghcr.io/pyck-ai
       # Distinct per-repo builder name so concurrent builds on the same
       # self-hosted runner don't collide on a shared default builder.
       builder-name: flutter-rfw
+      # The unprivileged kata pool; the build legs use its rootless BuildKit.
+      runs-on: self-hosted-kata
     secrets: inherit
