@@ -24,10 +24,27 @@ ARG TARGETPLATFORM TARGETARCH FLUTTER_VERSION
 # Flutter only publishes a Linux x86_64 archive with no official arm64 Linux
 # release. The archive ships with bin/cache/ pre-populated for x86_64 (Dart SDK,
 # engine artifacts, and a pre-compiled flutter_tools.snapshot). For amd64 this
-# is sufficient. For arm64 the next two steps fix up the cache contents before
-# any flutter command runs. Checksum is pulled from the Flutter releases JSON
-# via --checksum-jq so no separate file needs tracking. The archive extracts as
-# flutter/ so --install-to /opt/ gives /opt/flutter/.
+# is sufficient. For arm64 the bundled x86_64 Dart SDK is replaced here and the
+# next step fixes up the rest of the cache before any flutter command runs.
+# Checksum is pulled from the Flutter releases JSON via --checksum-jq so no
+# separate file needs tracking. The archive extracts as flutter/ so
+# --install-to /opt/ gives /opt/flutter/.
+#
+# Download and Dart SDK swap are ONE step on purpose: as two steps, the arm64
+# layer chain kept the deleted x86_64 Dart SDK and engine artifacts in the
+# lower layer (a deletion in a later layer frees nothing), about 1.3 GB per
+# arm64 build, measured as the arm64 image growing from 1988 to 3262 MiB
+# compressed when a probe built the result stage on top of these layers. On
+# the kata runners that dead weight counts against a 20 GiB BuildKit disk.
+#
+# Flutter's bootstrap cannot self-repair a wrong-arch SDK: it tries to exec the
+# existing dart binary before re-downloading, which fails immediately on the
+# wrong architecture. We therefore swap it explicitly, before any flutter
+# command runs. The Dart version is read from bin/cache/dart-sdk/version inside
+# the archive so no extra ARG is needed. We use `file | awk` on the binary
+# rather than TARGETARCH so the swap becomes a no-op automatically if Flutter
+# ever ships an arm64 archive. After swapping we clear *.stamp and
+# artifacts/engine (see the next step for why).
 RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
     download.sh\
     --var "version=${FLUTTER_VERSION}"\
@@ -39,18 +56,6 @@ RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
     git config --global --add safe.directory /opt/flutter &&\
     git -C /opt/flutter rev-parse HEAD > /opt/flutter/.git/shallow &&\
     git -C /opt/flutter gc --prune=now &&\
-    chown -R nonroot:nonroot /opt/flutter
-
-# arm64 only: replace the bundled x86_64 Dart SDK with an arm64 build. Flutter's
-# bootstrap cannot self-repair a wrong-arch SDK. It tries to exec the existing
-# dart binary before re-downloading, which fails immediately on the wrong
-# architecture. We therefore swap it explicitly here, before any flutter command
-# runs. The Dart version is read from bin/cache/dart-sdk/version inside the
-# archive so no extra ARG is needed. We use `file | awk` on the binary rather
-# than TARGETARCH so this step becomes a no-op automatically if Flutter ever
-# ships an arm64 archive. After swapping we clear *.stamp and artifacts/engine
-# (see the next step for why).
-RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
     case "$TARGETARCH" in\
         amd64) arch_pat="x86-64" ;;\
         arm64) arch_pat="aarch64" ;;\
@@ -67,9 +72,9 @@ RUN --mount=type=cache,id=downloads,target=/var/cache/downloads,sharing=shared\
             --url "https://storage.googleapis.com/dart-archive/channels/stable/release/{version}/sdk/dartsdk-linux-{arch}-release.zip"\
             --checksum-url "https://storage.googleapis.com/dart-archive/channels/stable/release/{version}/sdk/dartsdk-linux-{arch}-release.zip.sha256sum"\
             --install-to /opt/flutter/bin/cache/ &&\
-        rm -rf /opt/flutter/bin/cache/*.stamp /opt/flutter/bin/cache/artifacts/engine &&\
-        chown -R nonroot:nonroot /opt/flutter/bin/cache;\
-    fi
+        rm -rf /opt/flutter/bin/cache/*.stamp /opt/flutter/bin/cache/artifacts/engine;\
+    fi &&\
+    chown -R nonroot:nonroot /opt/flutter
 
 # arm64 only: recompile flutter_tools.snapshot and download arm64 engine
 # artifacts.
