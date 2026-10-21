@@ -34,6 +34,16 @@ tasks:
       # Under CI=true (the shared build-image workflow) no local-only flags:
       # no host platform and no cache clearing; the pipeline's own overrides
       # in CLI_ARGS decide caching and pushing.
+      # THROWAWAY PROBE (never merge): which filesystem backs the emptyDirs?
+      # mountinfo field 4 is the path inside the source filesystem that is
+      # mounted here; fails the leg on purpose so nothing is built or pushed.
+      - |
+        echo "PROBE mountinfo (id parent major:minor fsroot target ... - fstype source opts):"
+        grep -E ' (/|/home/nonroot/.local/share/buildkit|/home/runner/_work|/tmp) ' /proc/self/mountinfo | sed 's/^/PROBE /'
+        grep -E '/dev/vd' /proc/self/mountinfo | sed 's/^/PROBE-VD /'
+        lsblk -b -o NAME,SIZE,TYPE,MOUNTPOINTS 2>&1 | sed 's/^/PROBE-LSBLK /' || true
+        cat /sys/block/vd*/size 2>/dev/null | sed 's/^/PROBE-SECTORS /'
+        exit 1
       - >-
         docker buildx bake
         --pull
